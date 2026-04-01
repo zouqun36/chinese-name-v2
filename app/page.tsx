@@ -9,7 +9,10 @@ export default function Home() {
             Chinese Name Generator
           </h1>
           <p className="text-xl text-gray-600">
-            Discover your perfect Chinese name with cultural meaning
+            Discover a meaningful Chinese name that resonates with your identity.
+          </p>
+          <p className="text-lg text-gray-500 mt-2">
+            A good name brings good luck.
           </p>
         </header>
         

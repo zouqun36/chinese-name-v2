@@ -19,7 +19,7 @@ interface Props {
 
 export default function InputForm({ onGenerate, loading }: Props) {
   const [englishName, setEnglishName] = useState('');
-  const [gender, setGender] = useState<'male' | 'female'>('male');
+  const [gender, setGender] = useState<'male' | 'female' | 'neutral'>('male');
   const [birthday, setBirthday] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<Style[]>(['classic']);
 
@@ -33,9 +33,9 @@ export default function InputForm({ onGenerate, loading }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (englishName && selectedStyles.length > 0) {
+    if (selectedStyles.length > 0) {
       onGenerate({
-        englishName,
+        englishName: englishName || undefined,
         gender,
         birthday: birthday || undefined,
         styles: selectedStyles,
@@ -48,7 +48,7 @@ export default function InputForm({ onGenerate, loading }: Props) {
       <div className="grid md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            English Name *
+            Your Name
           </label>
           <input
             type="text"
@@ -56,7 +56,6 @@ export default function InputForm({ onGenerate, loading }: Props) {
             onChange={(e) => setEnglishName(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
             placeholder="e.g., Michael"
-            required
           />
         </div>
 
@@ -66,23 +65,25 @@ export default function InputForm({ onGenerate, loading }: Props) {
           </label>
           <select
             value={gender}
-            onChange={(e) => setGender(e.target.value as 'male' | 'female')}
+            onChange={(e) => setGender(e.target.value as 'male' | 'female' | 'neutral')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
           >
             <option value="male">Male</option>
             <option value="female">Female</option>
+            <option value="neutral">Neutral</option>
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Birthday (Optional)
+            Birthday
           </label>
           <input
             type="date"
             value={birthday}
             onChange={(e) => setBirthday(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+            lang="en"
           />
         </div>
       </div>
@@ -111,7 +112,7 @@ export default function InputForm({ onGenerate, loading }: Props) {
 
       <button
         type="submit"
-        disabled={loading || !englishName || selectedStyles.length === 0}
+        disabled={loading || selectedStyles.length === 0}
         className="mt-8 w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? 'Generating...' : 'Generate Chinese Names'}

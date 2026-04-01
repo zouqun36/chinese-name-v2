@@ -1,7 +1,7 @@
 // 用户输入
 export interface UserInput {
-  englishName: string;
-  gender?: 'male' | 'female';
+  englishName?: string;
+  gender?: 'male' | 'female' | 'neutral';
   birthday?: string; // YYYY-MM-DD
   styles: Style[];
 }

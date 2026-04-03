@@ -1,7 +1,7 @@
 'use client';
 
 import { ChineseName } from '@/lib/types';
-import { useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Props {
   name: ChineseName;
@@ -9,35 +9,51 @@ interface Props {
   onClose: () => void;
 }
 
-const ZODIAC_EMOJI: { [key: string]: string } = {
-  'Rat': '🐀', 'Ox': '🐂', 'Tiger': '🐅', 'Rabbit': '🐇',
-  'Dragon': '🐉', 'Snake': '🐍', 'Horse': '🐴', 'Goat': '🐐',
-  'Monkey': '🐒', 'Rooster': '🐓', 'Dog': '🐕', 'Pig': '🐖',
-};
-
 export default function LuckyCardModal({ name, gender, onClose }: Props) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const cardPayload = {
+    fullName: name.fullName,
+    pinyin: name.pinyin,
+    meaning: name.meaning,
+    luckyPhrase: name.luckyPhrase,
+    zodiac: name.zodiac || 'dragon',
+    gender: gender,
+  };
+
+  // 打开时自动生成带水印预览图
+  useEffect(() => {
+    setPreviewLoading(true);
+    fetch('/api/generate-card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...cardPayload, watermark: true }),
+    })
+      .then(res => res.blob())
+      .then(blob => {
+        setPreviewUrl(URL.createObjectURL(blob));
+        setPreviewLoading(false);
+      })
+      .catch(() => setPreviewLoading(false));
+
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, []);
 
   const handleDownload = async () => {
-    setIsGenerating(true);
+    setIsDownloading(true);
     try {
       const res = await fetch('/api/generate-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: name.fullName,
-          pinyin: name.pinyin,
-          meaning: name.meaning,
-          luckyPhrase: name.luckyPhrase,
-          zodiac: name.zodiac || 'dragon',
-          gender: gender,
-        }),
+        body: JSON.stringify({ ...cardPayload, watermark: false }),
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        alert('Failed to generate card: ' + err.error);
+        alert('Failed to generate card');
         return;
       }
 
@@ -45,65 +61,61 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${name.fullName}_lucky_card.jpg`;
+      a.download = `${name.fullName}_lucky_card.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       alert('Error generating card');
-      console.error(e);
     } finally {
-      setIsGenerating(false);
+      setIsDownloading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">Lucky Card Preview</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
-          </div>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex justify-between items-center px-6 py-4 border-b">
+          <h2 className="text-xl font-bold text-gray-800">✨ Your Lucky Card</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
 
-          {/* Card Preview */}
-          <div
-            ref={cardRef}
-            className="bg-gradient-to-br from-red-50 to-yellow-50 border-4 border-red-600 rounded-lg p-8 mb-6"
-            style={{ aspectRatio: '3/4' }}
-          >
-            <div className="h-full flex flex-col justify-between">
-              {name.zodiac && (
-                <div className="text-center">
-                  <div className="text-6xl mb-2">{ZODIAC_EMOJI[name.zodiac]}</div>
-                  <p className="text-sm text-gray-600">{name.zodiac}</p>
-                </div>
-              )}
-              <div className="text-center flex-1 flex flex-col justify-center">
-                <h1 className="text-6xl font-bold text-red-600 mb-4">{name.fullName}</h1>
-                <p className="text-2xl text-gray-700 mb-4">{name.pinyin}</p>
-                <p className="text-lg text-gray-600 italic">{name.meaning}</p>
-              </div>
-              <div className="text-center border-t-2 border-red-300 pt-4">
-                <p className="text-lg text-gray-700 italic">"{name.luckyPhrase}"</p>
-              </div>
+        {/* 预览图 */}
+        <div className="relative bg-gray-100" style={{ aspectRatio: '1/1' }}>
+          {previewLoading ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+              <div className="w-10 h-10 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-gray-500 text-sm">Generating your lucky card...</p>
             </div>
-          </div>
+          ) : previewUrl ? (
+            <img src={previewUrl} alt="Lucky Card Preview" className="w-full h-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+              Preview unavailable
+            </div>
+          )}
+        </div>
 
-          <div className="flex gap-4">
+        {/* 说明 + 按钮 */}
+        <div className="px-6 py-4">
+          <p className="text-sm text-gray-500 text-center mb-4">
+            Preview shown with watermark. Download the high-resolution version without watermark.
+          </p>
+          <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300"
+              className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl hover:bg-gray-200 font-medium transition-colors"
             >
               Close
             </button>
             <button
               onClick={handleDownload}
-              disabled={isGenerating}
-              className="flex-1 bg-yellow-500 text-white py-3 rounded-lg hover:bg-yellow-600 disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={isDownloading || previewLoading}
+              className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white py-3 rounded-xl font-bold hover:from-yellow-500 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md"
             >
-              {isGenerating ? 'Generating...' : 'Download Lucky Card'}
+              {isDownloading ? '⏳ Generating...' : '⬇️ Download HD Card'}
             </button>
           </div>
         </div>

@@ -17,10 +17,10 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
   const cardPayload = {
     fullName: name.fullName,
     pinyin: name.pinyin,
-    meaning: name.meaning,
-    luckyPhrase: name.luckyPhrase,
+    meaning: name.meaning || 'Lucky and Blessed',
+    luckyPhrase: name.luckyPhrase || 'May you shine with luck and flourish with joy',
     zodiac: name.zodiac || 'dragon',
-    gender: gender,
+    gender: gender || 'male',
   };
 
   useEffect(() => {
@@ -46,7 +46,11 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...cardPayload, watermark: false }),
       });
-      if (!res.ok) { alert('Failed to generate card'); return; }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        alert('Failed to generate card: ' + err.error);
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

@@ -2,7 +2,7 @@
 
 import { ChineseName } from '@/lib/types';
 import { useEffect, useRef, useState } from 'react';
-import { loadImageCached } from '@/lib/imageCache';
+import { loadImageCached, preloadAllImages } from '@/lib/imageCache';
 
 interface Props {
   name: ChineseName;
@@ -10,7 +10,6 @@ interface Props {
   onClose: () => void;
 }
 
-// 生肖映射
 const ZODIAC_MAP: Record<string, string> = {
   Rat: '/zodiac/rat.png', Ox: '/zodiac/ox.png', Tiger: '/zodiac/tiger.png',
   Rabbit: '/zodiac/rabbit.png', Dragon: '/zodiac/dragon.png', Snake: '/zodiac/snake.png',
@@ -31,19 +30,29 @@ function splitLuckyPhrase(phrase: string): [string, string] {
   const sp = phrase.indexOf(' ', mid);
   return sp !== -1 ? [phrase.substring(0, sp), phrase.substring(sp + 1)] : [phrase, ''];
 }
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    fetch(src)
-      .then(r => r.blob())
-      .then(blob => {
-        const url = URL.createObjectURL(blob);
-        const img = new Image();
-        img.onload = () => { resolve(img); URL.revokeObjectURL(url); };
-        img.onerror = reject;
-        img.src = url;
-      })
-      .catch(reject);
-  });
+
+// 生成英文文件名：拼音_zodiac_gender
+function buildFilename(pinyin: string, zodiac: string, gender: string): string {
+  const pinyinPart = pinyin.split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+  const zodiacPart = zodiac.charAt(0).toUpperCase() + zodiac.slice(1).toLowerCase();
+  const genderPart = gender === 'female' ? 'Female' : 'Male';
+  return `${pinyinPart}_${zodiacPart}_${genderPart}_LuckyCard.png`;
+}
+
+// 字体加载（只加载一次）
+let fontsLoaded = false;
+async function ensureFonts() {
+  if (fontsLoaded) return;
+  try {
+    await Promise.all([
+      new FontFace('Playfair Display', 'url(https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvUDQ.woff2)').load(),
+      new FontFace('Noto Serif SC', 'url(https://fonts.gstatic.com/s/notoserifsc/v22/H4c8BXePl9DZ0Xe7gG9cyOj7aq0.woff2)', { weight: '700' }).load(),
+    ]).then(fonts => fonts.forEach(f => (document.fonts as FontFaceSet).add(f)));
+    fontsLoaded = true;
+  } catch {
+    // 字体加载失败，降级用系统字体
+    fontsLoaded = true;
+  }
 }
 
 async function drawCard(canvas: HTMLCanvasElement, params: {
@@ -63,11 +72,12 @@ async function drawCard(canvas: HTMLCanvasElement, params: {
   const zodiacKey = Object.keys(ZODIAC_MAP).find(k => k.toLowerCase() === params.zodiac.toLowerCase()) || 'Dragon';
   const zodiacSrc = ZODIAC_MAP[zodiacKey] || '/zodiac/dragon.png';
 
-  // 加载图片（优先从缓存取）
+  // 并行：加载图片 + 加载字体
   const [bgImg, zodiacImg] = await Promise.all([
     loadImageCached(`/backgrounds/${genderKey}.png`),
     loadImageCached(zodiacSrc),
-  ]);
+    ensureFonts(),
+  ]) as [HTMLImageElement, HTMLImageElement, void];
 
   // 背景
   ctx.drawImage(bgImg, 0, 0, SIZE, SIZE);
@@ -77,7 +87,7 @@ async function drawCard(canvas: HTMLCanvasElement, params: {
     ctx.save();
     ctx.globalAlpha = 0.35;
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 80px serif';
+    ctx.font = 'bold 80px "Playfair Display", serif';
     ctx.translate(SIZE / 2, SIZE / 2);
     ctx.rotate(-35 * Math.PI / 180);
     ctx.textAlign = 'center';
@@ -89,14 +99,14 @@ async function drawCard(canvas: HTMLCanvasElement, params: {
   ctx.textAlign = 'center';
   const cx = SIZE / 2;
 
-  // 中文名
-  ctx.font = 'bold 120px serif';
+  // 中文名 - Noto Serif SC 粗体
+  ctx.font = 'bold 120px "Noto Serif SC", serif';
   ctx.fillStyle = DARK;
   ctx.fillText(params.fullName, cx, y + 100);
   y += 175;
 
-  // 拼音
-  ctx.font = '28px serif';
+  // 拼音 - Playfair Display
+  ctx.font = '28px "Playfair Display", serif';
   ctx.fillStyle = MID;
   ctx.fillText(formatPinyin(params.pinyin), cx, y);
   y += 48;
@@ -106,8 +116,8 @@ async function drawCard(canvas: HTMLCanvasElement, params: {
   ctx.beginPath(); ctx.moveTo(cx - 300, y); ctx.lineTo(cx + 300, y); ctx.stroke();
   y += 38;
 
-  // Meaning
-  ctx.font = '24px serif';
+  // Meaning - Playfair Display italic
+  ctx.font = 'italic 24px "Playfair Display", serif';
   ctx.fillStyle = MID;
   ctx.fillText(formatMeaning(params.meaning), cx, y);
   y += 40;
@@ -116,9 +126,9 @@ async function drawCard(canvas: HTMLCanvasElement, params: {
   ctx.beginPath(); ctx.moveTo(cx - 300, y); ctx.lineTo(cx + 300, y); ctx.stroke();
   y += 48;
 
-  // Lucky Phrase
+  // Lucky Phrase - Playfair Display bold
   const [line1, line2] = splitLuckyPhrase(params.luckyPhrase);
-  ctx.font = 'bold 32px serif';
+  ctx.font = 'bold 32px "Playfair Display", serif';
   ctx.fillStyle = DARK;
   ctx.fillText(line1, cx, y);
   if (line2) { y += 44; ctx.fillText(line2, cx, y); }
@@ -141,8 +151,8 @@ async function drawCard(canvas: HTMLCanvasElement, params: {
   ctx.drawImage(zodiacImg, cx - r, y, r * 2, r * 2);
   ctx.restore();
 
-  // 网站
-  ctx.font = '28px serif';
+  // 网站 - Playfair Display
+  ctx.font = '28px "Playfair Display", serif';
   ctx.fillStyle = 'white';
   ctx.fillText('chinanam.online', cx, SIZE - 50);
 }
@@ -186,8 +196,9 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
     try {
       const canvas = document.createElement('canvas');
       await drawCard(canvas, { ...params, watermark: false });
+      const filename = buildFilename(params.pinyin, params.zodiac, params.gender);
       const link = document.createElement('a');
-      link.download = `${name.fullName}_lucky_card.png`;
+      link.download = filename;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch {

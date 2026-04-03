@@ -73,14 +73,14 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
       <div className="bg-white rounded-2xl w-full shadow-2xl flex flex-col"
         style={{ maxWidth: '480px', maxHeight: '90vh' }}>
 
-        {/* Header - 固定 */}
-        <div className="flex justify-between items-center px-5 py-3 border-b flex-shrink-0">
+        {/* Header - 固定，z-index确保不被图片遮住 */}
+        <div className="flex justify-between items-center px-5 py-3 border-b flex-shrink-0 bg-white relative z-10">
           <h2 className="text-lg font-bold text-gray-800">✨ Your Lucky Card</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">×</button>
         </div>
 
         {/* 预览图 - 可缩放，占据剩余空间但不超出 */}
-        <div className="flex-1 min-h-0 flex items-center justify-center bg-gray-100 p-3">
+        <div className="flex-1 min-h-0 flex items-center justify-center bg-gray-100 p-3 overflow-hidden">
           {previewLoading ? (
             <div className="flex flex-col items-center gap-3 py-12">
               <div className="w-10 h-10 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />

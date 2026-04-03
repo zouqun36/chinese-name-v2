@@ -69,17 +69,26 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-      {/* Modal：固定最大高度，内部滚动 */}
-      <div className="bg-white rounded-2xl w-full shadow-2xl flex flex-col"
-        style={{ maxWidth: '480px', maxHeight: '90vh' }}>
 
-        {/* Header - 固定，z-index确保不被图片遮住 */}
-        <div className="flex justify-between items-center px-5 py-3 border-b flex-shrink-0 bg-white relative z-10">
+      {/* 关闭按钮：悬浮在遮罩右上角，始终在最顶层 */}
+      <button
+        onClick={onClose}
+        style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 9999 }}
+        className="w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center text-gray-700 hover:bg-gray-100 text-xl font-bold"
+      >
+        ×
+      </button>
+
+      {/* Modal */}
+      <div className="bg-white rounded-2xl w-full shadow-2xl flex flex-col"
+        style={{ maxWidth: '480px', maxHeight: '88vh' }}>
+
+        {/* Header */}
+        <div className="flex items-center px-5 py-3 border-b flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-800">✨ Your Lucky Card</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">×</button>
         </div>
 
-        {/* 预览图 - 可缩放，占据剩余空间但不超出 */}
+        {/* 预览图 */}
         <div className="flex-1 min-h-0 flex items-center justify-center bg-gray-100 p-3 overflow-hidden">
           {previewLoading ? (
             <div className="flex flex-col items-center gap-3 py-12">
@@ -98,7 +107,7 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
           )}
         </div>
 
-        {/* 底部说明 + 按钮 - 固定 */}
+        {/* 底部按钮 */}
         <div className="px-5 py-4 border-t flex-shrink-0">
           <p className="text-xs text-gray-400 text-center mb-3">
             Preview has watermark · Download HD version is watermark-free

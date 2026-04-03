@@ -32,11 +32,16 @@ function splitLuckyPhrase(phrase: string): [string, string] {
 }
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
+    fetch(src)
+      .then(r => r.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => { resolve(img); URL.revokeObjectURL(url); };
+        img.onerror = reject;
+        img.src = url;
+      })
+      .catch(reject);
   });
 }
 

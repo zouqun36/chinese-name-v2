@@ -1,7 +1,7 @@
 'use client';
 
 import { ChineseName } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Props {
   name: ChineseName;
@@ -9,81 +9,183 @@ interface Props {
   onClose: () => void;
 }
 
+// 生肖映射
+const ZODIAC_MAP: Record<string, string> = {
+  Rat: '/zodiac/rat.png', Ox: '/zodiac/ox.png', Tiger: '/zodiac/tiger.png',
+  Rabbit: '/zodiac/rabbit.png', Dragon: '/zodiac/dragon.png', Snake: '/zodiac/snake.png',
+  Horse: '/zodiac/horse.png', Goat: '/zodiac/goat.png', Monkey: '/zodiac/monkey.png',
+  Rooster: '/zodiac/rooster.png', Dog: '/zodiac/dog.png', Pig: '/zodiac/pig.png',
+};
+
+function formatPinyin(pinyin: string) {
+  return pinyin.split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' · ');
+}
+function formatMeaning(meaning: string) {
+  return meaning.split(',').map(m => m.trim()).map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(' · ');
+}
+function splitLuckyPhrase(phrase: string): [string, string] {
+  const andIdx = phrase.toLowerCase().indexOf(' and ');
+  if (andIdx !== -1) return [phrase.substring(0, andIdx), phrase.substring(andIdx + 1)];
+  const mid = Math.floor(phrase.length / 2);
+  const sp = phrase.indexOf(' ', mid);
+  return sp !== -1 ? [phrase.substring(0, sp), phrase.substring(sp + 1)] : [phrase, ''];
+}
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function drawCard(canvas: HTMLCanvasElement, params: {
+  fullName: string; pinyin: string; meaning: string;
+  luckyPhrase: string; zodiac: string; gender: string; watermark: boolean;
+}) {
+  const SIZE = 1080;
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d')!;
+
+  const GOLD = '#DAA520';
+  const DARK = '#3C3C3C';
+  const MID = '#787878';
+
+  const genderKey = params.gender === 'female' ? 'female' : 'male';
+  const zodiacKey = Object.keys(ZODIAC_MAP).find(k => k.toLowerCase() === params.zodiac.toLowerCase()) || 'Dragon';
+  const zodiacSrc = ZODIAC_MAP[zodiacKey] || '/zodiac/dragon.png';
+
+  // 加载图片
+  const [bgImg, zodiacImg] = await Promise.all([
+    loadImage(`/backgrounds/${genderKey}.png`),
+    loadImage(zodiacSrc),
+  ]);
+
+  // 背景
+  ctx.drawImage(bgImg, 0, 0, SIZE, SIZE);
+
+  // 水印
+  if (params.watermark) {
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 80px serif';
+    ctx.translate(SIZE / 2, SIZE / 2);
+    ctx.rotate(-35 * Math.PI / 180);
+    ctx.textAlign = 'center';
+    ctx.fillText('PREVIEW ONLY', 0, 0);
+    ctx.restore();
+  }
+
+  let y = 180;
+  ctx.textAlign = 'center';
+  const cx = SIZE / 2;
+
+  // 中文名
+  ctx.font = 'bold 120px serif';
+  ctx.fillStyle = DARK;
+  ctx.fillText(params.fullName, cx, y + 100);
+  y += 175;
+
+  // 拼音
+  ctx.font = '28px serif';
+  ctx.fillStyle = MID;
+  ctx.fillText(formatPinyin(params.pinyin), cx, y);
+  y += 48;
+
+  // 横线
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx - 300, y); ctx.lineTo(cx + 300, y); ctx.stroke();
+  y += 38;
+
+  // Meaning
+  ctx.font = '24px serif';
+  ctx.fillStyle = MID;
+  ctx.fillText(formatMeaning(params.meaning), cx, y);
+  y += 40;
+
+  // 横线
+  ctx.beginPath(); ctx.moveTo(cx - 300, y); ctx.lineTo(cx + 300, y); ctx.stroke();
+  y += 48;
+
+  // Lucky Phrase
+  const [line1, line2] = splitLuckyPhrase(params.luckyPhrase);
+  ctx.font = 'bold 32px serif';
+  ctx.fillStyle = DARK;
+  ctx.fillText(line1, cx, y);
+  if (line2) { y += 44; ctx.fillText(line2, cx, y); }
+  y += 40;
+
+  // 短横线 + 圆点
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx - 160, y); ctx.lineTo(cx - 10, y); ctx.stroke();
+  ctx.fillStyle = GOLD;
+  ctx.beginPath(); ctx.arc(cx, y, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx + 10, y); ctx.lineTo(cx + 160, y); ctx.stroke();
+  y += 30;
+
+  // 生肖圆形
+  const r = 52;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, y + r, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(zodiacImg, cx - r, y, r * 2, r * 2);
+  ctx.restore();
+
+  // 网站
+  ctx.font = '28px serif';
+  ctx.fillStyle = 'white';
+  ctx.fillText('chinanam.online', cx, SIZE - 50);
+}
+
 export default function LuckyCardModal({ name, gender, onClose }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [error, setError] = useState(false);
 
-  // 每次 name 变化时重新生成预览
+  const params = {
+    fullName: name.fullName,
+    pinyin: name.pinyin,
+    meaning: name.meaning || 'Lucky and Blessed',
+    luckyPhrase: name.luckyPhrase || 'May you shine with luck and flourish with joy',
+    zodiac: name.zodiac || 'Dragon',
+    gender: gender || 'male',
+  };
+
   useEffect(() => {
-    const payload = {
-      fullName: name.fullName,
-      pinyin: name.pinyin,
-      meaning: name.meaning || 'Lucky and Blessed',
-      luckyPhrase: name.luckyPhrase || 'May you shine with luck and flourish with joy',
-      zodiac: name.zodiac || 'dragon',
-      gender: gender || 'male',
-      watermark: true,
-    };
-
     setPreviewLoading(true);
     setPreviewUrl(null);
+    setError(false);
 
-    fetch('/api/generate-card', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('API error');
-        return res.blob();
-      })
-      .then(blob => {
-        setPreviewUrl(URL.createObjectURL(blob));
+    const canvas = document.createElement('canvas');
+    drawCard(canvas, { ...params, watermark: true })
+      .then(() => {
+        setPreviewUrl(canvas.toDataURL('image/jpeg', 0.85));
         setPreviewLoading(false);
       })
       .catch(err => {
         console.error('Preview error:', err);
         setPreviewLoading(false);
+        setError(true);
       });
   }, [name.fullName, name.zodiac, gender]);
 
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      const payload = {
-        fullName: name.fullName,
-        pinyin: name.pinyin,
-        meaning: name.meaning || 'Lucky and Blessed',
-        luckyPhrase: name.luckyPhrase || 'May you shine with luck and flourish with joy',
-        zodiac: name.zodiac || 'dragon',
-        gender: gender || 'male',
-        watermark: false,
-      };
-
-      const res = await fetch('/api/generate-card', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-        alert('Failed to generate card: ' + err.error);
-        return;
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${name.fullName}_lucky_card.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      await drawCard(canvas, { ...params, watermark: false });
+      const link = document.createElement('a');
+      link.download = `${name.fullName}_lucky_card.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
     } catch {
-      alert('Error generating card');
+      alert('Error generating card, please try again');
     } finally {
       setIsDownloading(false);
     }
@@ -91,61 +193,47 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      {/* 关闭按钮：悬浮在遮罩右上角，始终在最顶层 */}
-      <button
-        onClick={onClose}
+      <button onClick={onClose}
         style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 9999 }}
-        className="w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center text-gray-700 hover:bg-gray-100 text-xl font-bold"
-      >
+        className="w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center text-gray-700 hover:bg-gray-100 text-xl font-bold">
         ×
       </button>
 
-      {/* Modal */}
       <div className="bg-white rounded-2xl w-full shadow-2xl flex flex-col"
         style={{ maxWidth: '480px', maxHeight: '88vh' }}>
 
-        {/* Header */}
         <div className="flex items-center px-5 py-3 border-b flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-800">✨ Your Lucky Card</h2>
         </div>
 
-        {/* 预览图 */}
         <div className="flex-1 min-h-0 flex items-center justify-center bg-gray-100 p-3 overflow-hidden">
           {previewLoading ? (
             <div className="flex flex-col items-center gap-3 py-12">
               <div className="w-10 h-10 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
               <p className="text-gray-500 text-sm">Generating your lucky card...</p>
             </div>
+          ) : error ? (
+            <div className="text-gray-400 py-12 text-center text-sm">Preview unavailable, please try again</div>
           ) : previewUrl ? (
-            <img
-              src={previewUrl}
-              alt="Lucky Card Preview"
-              className="w-full h-full object-contain rounded-lg"
-              style={{ maxHeight: '100%' }}
-            />
-          ) : (
-            <div className="text-gray-400 py-12">Preview unavailable, please try again</div>
-          )}
+            <img src={previewUrl} alt="Lucky Card Preview"
+              className="w-full h-full object-contain rounded-lg" style={{ maxHeight: '100%' }} />
+          ) : null}
         </div>
 
-        {/* 底部按钮 */}
         <div className="px-5 py-4 border-t flex-shrink-0">
           <p className="text-xs text-gray-400 text-center mb-3">
             Preview has watermark · Download HD version is watermark-free
           </p>
           <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl hover:bg-gray-200 font-medium transition-colors text-sm"
-            >
+            <button onClick={onClose}
+              className="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl hover:bg-gray-200 font-medium transition-colors text-sm">
               Close
             </button>
-            <button
-              onClick={handleDownload}
-              disabled={isDownloading || previewLoading}
-              className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white py-2.5 rounded-xl font-bold hover:from-yellow-500 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md text-sm"
-            >
+            <button onClick={handleDownload}
+              disabled={isDownloading || previewLoading || error}
+              className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white py-2.5 rounded-xl font-bold hover:from-yellow-500 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md text-sm">
               {isDownloading ? '⏳ Generating...' : '⬇️ Download HD Card'}
             </button>
           </div>

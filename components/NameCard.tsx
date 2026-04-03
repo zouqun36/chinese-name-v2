@@ -11,12 +11,21 @@ interface Props {
 
 export default function NameCard({ name, gender }: Props) {
   const [showLuckyCard, setShowLuckyCard] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleSpeak = () => {
     const utterance = new SpeechSynthesisUtterance(name.fullName);
     utterance.lang = 'zh-CN';
     utterance.rate = 0.8;
     speechSynthesis.speak(utterance);
+  };
+
+  const handleCopy = () => {
+    const text = `${name.fullName}\n${name.pinyin}\nMeaning: ${name.meaning}\n${name.luckyPhrase}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   return (
@@ -67,10 +76,16 @@ export default function NameCard({ name, gender }: Props) {
           🔊 Pronounce
         </button>
         <button
+          onClick={handleCopy}
+          className={`flex-1 py-2 rounded-lg transition-colors ${copied ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+        >
+          {copied ? '✅ Copied!' : '📋 Copy'}
+        </button>
+        <button
           onClick={() => setShowLuckyCard(true)}
           className="flex-1 bg-yellow-500 text-white py-2 rounded-lg hover:bg-yellow-600 transition-colors"
         >
-          ✨ Create Lucky Card
+          ✨ Lucky Card
         </button>
       </div>
     </div>

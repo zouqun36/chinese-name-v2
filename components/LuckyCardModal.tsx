@@ -31,12 +31,10 @@ function splitLuckyPhrase(phrase: string): [string, string] {
   return sp !== -1 ? [phrase.substring(0, sp), phrase.substring(sp + 1)] : [phrase, ''];
 }
 
-// 生成英文文件名：拼音_zodiac_gender
-function buildFilename(pinyin: string, zodiac: string, gender: string): string {
+// 生成英文文件名：拼音_LuckyCard
+function buildFilename(pinyin: string): string {
   const pinyinPart = pinyin.split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
-  const zodiacPart = zodiac.charAt(0).toUpperCase() + zodiac.slice(1).toLowerCase();
-  const genderPart = gender === 'female' ? 'Female' : 'Male';
-  return `${pinyinPart}_${zodiacPart}_${genderPart}_LuckyCard.png`;
+  return `${pinyinPart}_LuckyCard.png`;
 }
 
 // 字体加载（只加载一次）
@@ -47,6 +45,7 @@ async function ensureFonts() {
     await Promise.all([
       new FontFace('Playfair Display', 'url(https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvUDQ.woff2)').load(),
       new FontFace('Noto Serif SC', 'url(https://fonts.gstatic.com/s/notoserifsc/v22/H4c8BXePl9DZ0Xe7gG9cyOj7aq0.woff2)', { weight: '700' }).load(),
+      new FontFace('Cormorant Garamond', 'url(https://fonts.gstatic.com/s/cormorantgaramond/v21/co3YmX5slCNuHLi8bLeY9MK7whWMhyjornFLsS6V7w.woff2)', { weight: '600' }).load(),
     ]).then(fonts => fonts.forEach(f => (document.fonts as FontFaceSet).add(f)));
     fontsLoaded = true;
   } catch {
@@ -116,8 +115,8 @@ async function drawCard(canvas: HTMLCanvasElement, params: {
   ctx.beginPath(); ctx.moveTo(cx - 300, y); ctx.lineTo(cx + 300, y); ctx.stroke();
   y += 38;
 
-  // Meaning - Playfair Display italic
-  ctx.font = 'italic 24px "Playfair Display", serif';
+  // Meaning - Playfair Display 正体（不斜）
+  ctx.font = '24px "Playfair Display", serif';
   ctx.fillStyle = MID;
   ctx.fillText(formatMeaning(params.meaning), cx, y);
   y += 40;
@@ -126,9 +125,9 @@ async function drawCard(canvas: HTMLCanvasElement, params: {
   ctx.beginPath(); ctx.moveTo(cx - 300, y); ctx.lineTo(cx + 300, y); ctx.stroke();
   y += 48;
 
-  // Lucky Phrase - Playfair Display bold
+  // Lucky Phrase - Cormorant Garamond（更优雅）
   const [line1, line2] = splitLuckyPhrase(params.luckyPhrase);
-  ctx.font = 'bold 32px "Playfair Display", serif';
+  ctx.font = '600 36px "Cormorant Garamond", serif';
   ctx.fillStyle = DARK;
   ctx.fillText(line1, cx, y);
   if (line2) { y += 44; ctx.fillText(line2, cx, y); }
@@ -196,7 +195,7 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
     try {
       const canvas = document.createElement('canvas');
       await drawCard(canvas, { ...params, watermark: false });
-      const filename = buildFilename(params.pinyin, params.zodiac, params.gender);
+      const filename = buildFilename(params.pinyin);
       const link = document.createElement('a');
       link.download = filename;
       link.href = canvas.toDataURL('image/png');

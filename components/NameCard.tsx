@@ -21,8 +21,14 @@ export default function NameCard({ name, gender }: Props) {
   };
 
   const handleCopy = () => {
-    const text = `${name.fullName}\n${name.pinyin}\nMeaning: ${name.meaning}\n${name.luckyPhrase}`;
-    navigator.clipboard.writeText(text).then(() => {
+    const lines = [
+      name.fullName,
+      name.pinyin,
+      `Meaning: ${name.meaning}`,
+      name.zodiac ? `Zodiac: ${name.zodiac}` : null,
+      name.luckyPhrase,
+    ].filter(Boolean).join('\n');
+    navigator.clipboard.writeText(lines).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });

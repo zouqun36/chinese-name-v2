@@ -2,6 +2,7 @@
 
 import { ChineseName } from '@/lib/types';
 import { useEffect, useRef, useState } from 'react';
+import { loadImageCached } from '@/lib/imageCache';
 
 interface Props {
   name: ChineseName;
@@ -62,10 +63,10 @@ async function drawCard(canvas: HTMLCanvasElement, params: {
   const zodiacKey = Object.keys(ZODIAC_MAP).find(k => k.toLowerCase() === params.zodiac.toLowerCase()) || 'Dragon';
   const zodiacSrc = ZODIAC_MAP[zodiacKey] || '/zodiac/dragon.png';
 
-  // 加载图片
+  // 加载图片（优先从缓存取）
   const [bgImg, zodiacImg] = await Promise.all([
-    loadImage(`/backgrounds/${genderKey}.png`),
-    loadImage(zodiacSrc),
+    loadImageCached(`/backgrounds/${genderKey}.png`),
+    loadImageCached(zodiacSrc),
   ]);
 
   // 背景

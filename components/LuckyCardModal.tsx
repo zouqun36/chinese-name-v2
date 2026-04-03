@@ -14,43 +14,65 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
   const [previewLoading, setPreviewLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const cardPayload = {
-    fullName: name.fullName,
-    pinyin: name.pinyin,
-    meaning: name.meaning || 'Lucky and Blessed',
-    luckyPhrase: name.luckyPhrase || 'May you shine with luck and flourish with joy',
-    zodiac: name.zodiac || 'dragon',
-    gender: gender || 'male',
-  };
-
+  // 每次 name 变化时重新生成预览
   useEffect(() => {
+    const payload = {
+      fullName: name.fullName,
+      pinyin: name.pinyin,
+      meaning: name.meaning || 'Lucky and Blessed',
+      luckyPhrase: name.luckyPhrase || 'May you shine with luck and flourish with joy',
+      zodiac: name.zodiac || 'dragon',
+      gender: gender || 'male',
+      watermark: true,
+    };
+
     setPreviewLoading(true);
+    setPreviewUrl(null);
+
     fetch('/api/generate-card', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...cardPayload, watermark: true }),
+      body: JSON.stringify(payload),
     })
-      .then(res => res.blob())
+      .then(res => {
+        if (!res.ok) throw new Error('API error');
+        return res.blob();
+      })
       .then(blob => {
         setPreviewUrl(URL.createObjectURL(blob));
         setPreviewLoading(false);
       })
-      .catch(() => setPreviewLoading(false));
-  }, []);
+      .catch(err => {
+        console.error('Preview error:', err);
+        setPreviewLoading(false);
+      });
+  }, [name.fullName, name.zodiac, gender]);
 
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
+      const payload = {
+        fullName: name.fullName,
+        pinyin: name.pinyin,
+        meaning: name.meaning || 'Lucky and Blessed',
+        luckyPhrase: name.luckyPhrase || 'May you shine with luck and flourish with joy',
+        zodiac: name.zodiac || 'dragon',
+        gender: gender || 'male',
+        watermark: false,
+      };
+
       const res = await fetch('/api/generate-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...cardPayload, watermark: false }),
+        body: JSON.stringify(payload),
       });
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Unknown error' }));
         alert('Failed to generate card: ' + err.error);
         return;
       }
+
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -103,7 +125,7 @@ export default function LuckyCardModal({ name, gender, onClose }: Props) {
               style={{ maxHeight: '100%' }}
             />
           ) : (
-            <div className="text-gray-400 py-12">Preview unavailable</div>
+            <div className="text-gray-400 py-12">Preview unavailable, please try again</div>
           )}
         </div>
 

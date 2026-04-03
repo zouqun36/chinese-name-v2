@@ -184,26 +184,119 @@ function createName(
   };
 }
 
+// 字义 → 祝福语核心词映射
+// 把具体的字义转化为抽象的美德/祝福概念
+const MEANING_TO_BLESSING: Record<string, string> = {
+  // 自然类
+  'fortune': 'abundant joy and prosperity',
+  'luck': 'boundless good fortune',
+  'blessing': 'endless blessings',
+  'prosperity': 'flourishing abundance',
+  'wealth': 'prosperity and fulfillment',
+  // 品德类
+  'elegant': 'grace and refinement',
+  'elegance': 'timeless grace',
+  'virtuous': 'noble character',
+  'virtue': 'inner nobility',
+  'gentle': 'warmth and kindness',
+  'wisdom': 'deep wisdom and clarity',
+  'wise': 'insight and wisdom',
+  'brave': 'courageous spirit',
+  'courage': 'fearless determination',
+  'kind': 'compassion and warmth',
+  'kindness': 'boundless compassion',
+  'honest': 'integrity and trust',
+  'loyal': 'steadfast loyalty',
+  'noble': 'noble spirit',
+  'pure': 'purity of heart',
+  'bright': 'radiant brilliance',
+  'brilliant': 'dazzling brilliance',
+  'talented': 'remarkable talents',
+  'intelligent': 'keen intellect',
+  'graceful': 'effortless grace',
+  'beautiful': 'inner and outer beauty',
+  'serene': 'peaceful serenity',
+  'peaceful': 'lasting peace',
+  'joyful': 'boundless joy',
+  'cheerful': 'endless happiness',
+  // 自然意象类（转为品质）
+  'pine': 'enduring strength',
+  'bamboo': 'resilient grace',
+  'lotus': 'pure and radiant beauty',
+  'plum': 'quiet perseverance',
+  'orchid': 'refined elegance',
+  'chrysanthemum': 'noble resilience',
+  'cypress': 'steadfast endurance',
+  'cedar': 'towering strength',
+  'willow': 'graceful adaptability',
+  'jade': 'rare and precious virtue',
+  'pearl': 'luminous beauty',
+  'dawn': 'bright new beginnings',
+  'morning': 'fresh promise each day',
+  'spring': 'renewal and vitality',
+  'river': 'flowing abundance',
+  'mountain': 'unshakable strength',
+  'sky': 'boundless possibilities',
+  'star': 'guiding brilliance',
+  'moon': 'gentle radiance',
+  'sun': 'warm and life-giving light',
+  'cloud': 'free and soaring spirit',
+  'snow': 'pure and gentle heart',
+  'rain': 'nurturing grace',
+  'wind': 'free and soaring spirit',
+  'flower': 'blossoming beauty',
+  'rose': 'passionate beauty',
+  'jasmine': 'delicate fragrance',
+  'herb': 'healing and vitality',
+  'angelica': 'fragrant virtue and vitality',
+  // 其他
+  'success': 'triumphant success',
+  'achievement': 'great achievements',
+  'health': 'vibrant health and longevity',
+  'longevity': 'long and blessed life',
+  'harmony': 'perfect harmony',
+  'balance': 'balanced and fulfilled life',
+  'strength': 'inner strength',
+  'power': 'quiet inner power',
+  'light': 'guiding inner light',
+  'hope': 'enduring hope',
+  'love': 'deep and lasting love',
+  'care': 'tender care and warmth',
+};
+
+// 把字义转成祝福语核心词
+function meaningToBlessing(meaning: string): string {
+  const key = meaning.split(',')[0].trim().toLowerCase();
+  // 精确匹配
+  if (MEANING_TO_BLESSING[key]) return MEANING_TO_BLESSING[key];
+  // 部分匹配
+  for (const [k, v] of Object.entries(MEANING_TO_BLESSING)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  // 降级：直接用原词但加修饰
+  return `the beauty of ${key}`;
+}
+
 function generateLuckyPhrase(char1: any, char2?: any): string {
-  const key1 = char1.meaning.split(',')[0].trim();
-  const key2 = char2 ? char2.meaning.split(',')[0].trim() : '';
-  
+  const blessing1 = meaningToBlessing(char1.meaning);
+  const blessing2 = char2 ? meaningToBlessing(char2.meaning) : '';
+
   if (char2) {
     const templates = [
-      `May you embody ${key1} and ${key2} throughout your life`,
-      `May you be blessed with ${key1} and ${key2}`,
-      `May your path be guided by ${key1} and ${key2}`,
-      `May you shine with ${key1} and flourish with ${key2}`,
-      `May ${key1} and ${key2} bring you endless fortune`,
+      `May your life be filled with ${blessing1} and ${blessing2}`,
+      `May you walk through life with ${blessing1} and ${blessing2}`,
+      `May ${blessing1} and ${blessing2} light your every step`,
+      `Wishing you a life blessed with ${blessing1} and ${blessing2}`,
+      `May you be forever graced with ${blessing1} and ${blessing2}`,
     ];
     return templates[Math.floor(Math.random() * templates.length)];
   } else {
     const templates = [
-      `May you embody ${key1} throughout your life`,
-      `May you be blessed with ${key1}`,
-      `May your path be guided by ${key1}`,
-      `May you shine with ${key1}`,
-      `May ${key1} bring you endless fortune`,
+      `May your life be filled with ${blessing1}`,
+      `May you walk through life with ${blessing1}`,
+      `May ${blessing1} light your every step`,
+      `Wishing you a life blessed with ${blessing1}`,
+      `May you be forever graced with ${blessing1}`,
     ];
     return templates[Math.floor(Math.random() * templates.length)];
   }

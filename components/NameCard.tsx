@@ -6,9 +6,10 @@ import LuckyCardModal from './LuckyCardModal';
 
 interface Props {
   name: ChineseName;
+  gender: 'male' | 'female' | 'neutral';
 }
 
-export default function NameCard({ name }: Props) {
+export default function NameCard({ name, gender }: Props) {
   const [showLuckyCard, setShowLuckyCard] = useState(false);
 
   const handleSpeak = () => {
@@ -75,7 +76,7 @@ export default function NameCard({ name }: Props) {
     </div>
 
     {showLuckyCard && (
-      <LuckyCardModal name={name} onClose={() => setShowLuckyCard(false)} />
+      <LuckyCardModal name={name} gender={gender} onClose={() => setShowLuckyCard(false)} />
     )}
   </>
   );

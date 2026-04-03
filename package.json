@@ -6,12 +6,20 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static",
+    "preview": "npm run pages:build && wrangler pages dev .vercel/output/static"
   },
   "dependencies": {
-    "next": "16.2.2",
+    "@cloudflare/next-on-pages": "^1.13.16",
+    "@resvg/resvg-js": "^2.6.2",
+    "@vercel/og": "^0.11.1",
+    "next": "^15.2.4",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "satori": "^0.26.0",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -9,12 +9,14 @@ import NameList from './NameList';
 export default function NameGenerator() {
   const [names, setNames] = useState<ChineseName[]>([]);
   const [loading, setLoading] = useState(false);
+  const [gender, setGender] = useState<'male' | 'female' | 'neutral'>('neutral');
 
   const handleGenerate = (input: UserInput) => {
     setLoading(true);
     setTimeout(() => {
       const generated = generateNames(input);
       setNames(generated);
+      setGender(input.gender || 'neutral');
       setLoading(false);
     }, 500);
   };
@@ -22,7 +24,7 @@ export default function NameGenerator() {
   return (
     <div className="max-w-6xl mx-auto">
       <InputForm onGenerate={handleGenerate} loading={loading} />
-      {names.length > 0 && <NameList names={names} />}
+      {names.length > 0 && <NameList names={names} gender={gender} />}
     </div>
   );
 }

@@ -1,61 +1,47 @@
-// 图片预加载缓存模块
-// 页面启动时预加载所有背景图和生肖图，后续直接从缓存取
+// 图片预加载缓存模块 - 使用内嵌 base64，零网络请求
+import { ZODIAC_IMAGES, BG_IMAGES } from '@/lib/assets/card-images';
 
-const imageCache: Map<string, string> = new Map();
-let preloadPromise: Promise<void> | null = null;
+const imageCache: Map<string, HTMLImageElement> = new Map();
 
-const ALL_IMAGES = [
-  '/backgrounds/female.png',
-  '/backgrounds/male.png',
-  '/zodiac/rat.png', '/zodiac/ox.png', '/zodiac/tiger.png', '/zodiac/rabbit.png',
-  '/zodiac/dragon.png', '/zodiac/snake.png', '/zodiac/horse.png', '/zodiac/goat.png',
-  '/zodiac/monkey.png', '/zodiac/rooster.png', '/zodiac/dog.png', '/zodiac/pig.png',
-];
+// 所有图片 src 映射（路径 → base64）
+const IMAGE_DATA: Record<string, string> = {
+  '/backgrounds/female.png': BG_IMAGES['female'],
+  '/backgrounds/male.png': BG_IMAGES['male'],
+  '/zodiac/rat.png': ZODIAC_IMAGES['rat'],
+  '/zodiac/ox.png': ZODIAC_IMAGES['ox'],
+  '/zodiac/tiger.png': ZODIAC_IMAGES['tiger'],
+  '/zodiac/rabbit.png': ZODIAC_IMAGES['rabbit'],
+  '/zodiac/dragon.png': ZODIAC_IMAGES['dragon'],
+  '/zodiac/snake.png': ZODIAC_IMAGES['snake'],
+  '/zodiac/horse.png': ZODIAC_IMAGES['horse'],
+  '/zodiac/goat.png': ZODIAC_IMAGES['goat'],
+  '/zodiac/monkey.png': ZODIAC_IMAGES['monkey'],
+  '/zodiac/rooster.png': ZODIAC_IMAGES['rooster'],
+  '/zodiac/dog.png': ZODIAC_IMAGES['dog'],
+  '/zodiac/pig.png': ZODIAC_IMAGES['pig'],
+};
 
-async function fetchAndCache(src: string): Promise<void> {
-  if (imageCache.has(src)) return;
-  try {
-    const res = await fetch(src);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    imageCache.set(src, url);
-  } catch {
-    // 忽略单张失败，不影响其他图片
+function loadFromBase64(src: string): Promise<HTMLImageElement> {
+  if (imageCache.has(src)) {
+    return Promise.resolve(imageCache.get(src)!);
   }
+  const data = IMAGE_DATA[src];
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { imageCache.set(src, img); resolve(img); };
+    img.onerror = reject;
+    img.src = data || src; // 有 base64 用 base64，否则降级用 URL
+  });
 }
 
+// 预加载所有图片到内存（同步解析 base64，极快）
+let preloadDone = false;
 export function preloadAllImages(): Promise<void> {
-  if (preloadPromise) return preloadPromise;
-  preloadPromise = Promise.all(ALL_IMAGES.map(fetchAndCache)).then(() => {});
-  return preloadPromise;
+  if (preloadDone) return Promise.resolve();
+  preloadDone = true;
+  return Promise.all(Object.keys(IMAGE_DATA).map(loadFromBase64)).then(() => {});
 }
 
 export function loadImageCached(src: string): Promise<HTMLImageElement> {
-  const cached = imageCache.get(src);
-  const blobUrl = cached || src;
-
-  if (cached) {
-    // 已缓存，直接加载
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = blobUrl;
-    });
-  }
-
-  // 未缓存，fetch后加载
-  return new Promise((resolve, reject) => {
-    fetch(src)
-      .then(r => r.blob())
-      .then(blob => {
-        const url = URL.createObjectURL(blob);
-        imageCache.set(src, url);
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = url;
-      })
-      .catch(reject);
-  });
+  return loadFromBase64(src);
 }
